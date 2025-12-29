@@ -1,9 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- State Management ---
-    let state = JSON.parse(localStorage.getItem('revestmaster_state')) || {
+    const defaultState = {
         projects: [],
-        currentProjectId: null
+        currentProjectId: null,
+        preferences: {
+            theme: 'light',
+            sidebarCollapsed: true
+        }
     };
+    let state = JSON.parse(localStorage.getItem('revestmaster_state')) || defaultState;
+    // Migration: ensure preferences exists
+    if (!state.preferences) state.preferences = defaultState.preferences;
     let editingRoomId = null;
 
     const saveState = () => {
@@ -32,6 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const closeModalBtns = document.querySelectorAll('.close-modal');
     const clearDataBtn = document.getElementById('clear-data-btn');
+    const themeSelect = document.getElementById('theme-select');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsView = document.getElementById('settings-view');
+    const homeBtn = document.getElementById('home-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const homeProjectsGrid = document.getElementById('home-projects-grid');
+    const homeProjectsSection = document.querySelector('.home-projects-section');
 
     // --- Calculation Engine ---
     const calculateMaterials = (roomData) => {
@@ -91,8 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderDashboard = () => {
         const project = state.projects.find(p => p.id === state.currentProjectId);
         if (!project) {
-            projectDashboard.classList.remove('active');
-            emptyView.classList.add('active');
+            showView('empty');
             addRoomBtn.classList.add('hidden');
             return;
         }
@@ -115,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('total-tiles').innerHTML = `${totals.tiles.toLocaleString()} <small>unid</small>`;
         document.getElementById('total-mortar').innerHTML = `${totals.mortar} <small>sacos</small>`;
         document.getElementById('total-grout').innerHTML = `${totals.grout.toFixed(1)} <small>kg</small>`;
+
+        showView('dashboard');
+        renderHomeProjects(); // Update home data in background
 
         // Render Room Cards
         roomItemsContainer.innerHTML = '';
@@ -164,6 +181,81 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
         renderSidebar();
         renderDashboard();
+    };
+
+    const renderHomeProjects = () => {
+        if (!homeProjectsGrid) return;
+        homeProjectsGrid.innerHTML = '';
+
+        if (state.projects.length === 0) {
+            homeProjectsSection.style.display = 'none';
+            return;
+        }
+
+        homeProjectsSection.style.display = 'block';
+        state.projects.forEach(project => {
+            const totalArea = project.rooms.reduce((acc, room) => acc + (room.results?.area || 0), 0);
+
+            const card = document.createElement('div');
+            card.className = 'summary-card';
+            card.innerHTML = `
+                <h4>${project.name}</h4>
+                <div class="stats">
+                    <span class="label">Área Total</span>
+                    <span class="value">${totalArea.toFixed(2)} <small>m²</small></span>
+                </div>
+            `;
+            card.onclick = () => selectProject(project.id);
+            homeProjectsGrid.appendChild(card);
+        });
+    };
+
+    const showView = (viewName) => {
+        const views = {
+            'dashboard': projectDashboard,
+            'empty': emptyView,
+            'settings': settingsView
+        };
+
+        Object.keys(views).forEach(name => {
+            if (name === viewName) {
+                views[name].classList.remove('hidden');
+                views[name].classList.add('active');
+            } else {
+                views[name].classList.add('hidden');
+                views[name].classList.remove('active');
+            }
+        });
+
+        // Toggle sidebar button active states
+        if (viewName === 'settings') {
+            settingsBtn.classList.add('active');
+            homeBtn.classList.remove('active');
+            renderSidebar(); // refresh to remove active from projects
+        } else if (viewName === 'empty') {
+            settingsBtn.classList.remove('active');
+            homeBtn.classList.add('active');
+            renderSidebar();
+        } else {
+            settingsBtn.classList.remove('active');
+            homeBtn.classList.remove('active');
+        }
+    };
+
+    const applyTheme = (theme) => {
+        const activeTheme = theme || 'light';
+        document.documentElement.setAttribute('data-theme', activeTheme);
+        if (themeSelect) themeSelect.value = activeTheme;
+    };
+
+    const toggleSidebar = (collapse) => {
+        state.preferences.sidebarCollapsed = collapse !== undefined ? collapse : !state.preferences.sidebarCollapsed;
+        if (state.preferences.sidebarCollapsed) {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+        }
+        saveState();
     };
 
     const createProject = (name) => {
@@ -283,7 +375,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    settingsBtn.onclick = () => {
+        state.currentProjectId = null;
+        showView('settings');
+    };
+
+    homeBtn.onclick = () => {
+        state.currentProjectId = null;
+        renderSidebar();
+        renderDashboard();
+    };
+
+    sidebarToggle.onclick = () => toggleSidebar();
+
+    themeSelect.onchange = (e) => {
+        state.preferences.theme = e.target.value;
+        applyTheme(state.preferences.theme);
+        saveState();
+    };
+
     // Initialize
+    applyTheme(state.preferences.theme);
+    toggleSidebar(state.preferences.sidebarCollapsed);
+    state.currentProjectId = null; // Always start on home page
     renderSidebar();
     renderDashboard();
+    renderHomeProjects();
 });

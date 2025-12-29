@@ -18,8 +18,15 @@
   "build": {
     "appId": "com.revestmaster.pro",
     "win": {
-      "target": "portable",
+      "target": "nsis",
       "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RevestMaster Pro"
     },
     "directories": {
       "output": "dist"

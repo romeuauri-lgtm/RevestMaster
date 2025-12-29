@@ -246,6 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeTheme = theme || 'light';
         document.documentElement.setAttribute('data-theme', activeTheme);
         if (themeSelect) themeSelect.value = activeTheme;
+
+        // Sync with native title bar via Electron IPC
+        if (window.electronAPI && window.electronAPI.setTheme) {
+            window.electronAPI.setTheme(activeTheme);
+        }
     };
 
     const toggleSidebar = (collapse) => {

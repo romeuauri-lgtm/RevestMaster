@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -7,7 +7,8 @@ function createWindow() {
         height: 800,
         webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         },
         icon: path.join(__dirname, 'icon.ico'),
         title: "RevestMaster Pro"
@@ -16,6 +17,10 @@ function createWindow() {
     win.setMenuBarVisibility(false);
     win.loadFile('index.html');
 }
+
+ipcMain.on('set-theme', (event, theme) => {
+    nativeTheme.themeSource = theme; // 'light', 'dark' or 'system'
+});
 
 app.whenReady().then(() => {
     createWindow();

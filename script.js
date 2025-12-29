@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const homeProjectsGrid = document.getElementById('home-projects-grid');
     const homeProjectsSection = document.querySelector('.home-projects-section');
+    const checkUpdatesBtn = document.getElementById('check-updates-btn');
+    const updateStatus = document.getElementById('update-status');
 
     // --- Calculation Engine ---
     const calculateMaterials = (roomData) => {
@@ -402,6 +404,39 @@ document.addEventListener('DOMContentLoaded', () => {
         applyTheme(state.preferences.theme);
         saveState();
     };
+
+    // Update functionality
+    if (checkUpdatesBtn && window.electronAPI) {
+        checkUpdatesBtn.onclick = () => {
+            updateStatus.textContent = 'Verificando atualizações...';
+            checkUpdatesBtn.disabled = true;
+            window.electronAPI.checkForUpdates();
+        };
+
+        window.electronAPI.onUpdateAvailable((info) => {
+            updateStatus.innerHTML = `Nova versão disponível: <strong>${info.version}</strong>. Baixando...`;
+            window.electronAPI.downloadUpdate();
+        });
+
+        window.electronAPI.onUpdateNotAvailable(() => {
+            updateStatus.textContent = 'Você já está usando a versão mais recente!';
+            checkUpdatesBtn.disabled = false;
+        });
+
+        window.electronAPI.onDownloadProgress((progress) => {
+            const percent = Math.round(progress.percent);
+            updateStatus.textContent = `Baixando atualização: ${percent}%`;
+        });
+
+        window.electronAPI.onUpdateDownloaded(() => {
+            updateStatus.innerHTML = 'Atualização baixada! <strong>Reinicie o aplicativo para instalar.</strong>';
+            checkUpdatesBtn.textContent = 'Reiniciar e Atualizar';
+            checkUpdatesBtn.disabled = false;
+            checkUpdatesBtn.onclick = () => {
+                window.electronAPI.installUpdate();
+            };
+        });
+    }
 
     // Initialize
     applyTheme(state.preferences.theme);

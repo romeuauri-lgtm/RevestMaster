@@ -1,6 +1,6 @@
 {
   "name": "revestmaster",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Calculadora de Materiais de Construção Profissional",
   "main": "main.js",
   "scripts": {
@@ -11,6 +11,9 @@
   "keywords": [],
   "author": "RevestMaster",
   "license": "ISC",
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1"
@@ -27,6 +30,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "RevestMaster Pro"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "romeuauri-lgtm",
+      "repo": "RevestMaster"
     },
     "directories": {
       "output": "dist"

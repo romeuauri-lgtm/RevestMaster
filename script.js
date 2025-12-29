@@ -145,6 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="room-results">
                     <div class="res-item">
+                        <span class="l">Área</span>
+                        <span class="v">${room.results.area.toFixed(2)} m²</span>
+                    </div>
+                    <div class="res-item">
                         <span class="l">Peças</span>
                         <span class="v">${room.results.tiles}</span>
                     </div>

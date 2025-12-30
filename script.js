@@ -52,30 +52,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Calculation Engine ---
     const calculateMaterials = (roomData) => {
-        const { length, width, tileLength, tileWidth, groutJoint, wasteMargin, cementWeight } = roomData;
+        const {
+            length,
+            width,
+            tileLength_cm,
+            tileWidth_cm,
+            groutJoint_mm,
+            wasteMargin_pct = 10,
+            mortarConsumption_kg_m2 = 6,
+            mortarBagWeight_kg = 20
+        } = roomData;
 
+        // --- Validação básica ---
+        if (![length, width, tileLength_cm, tileWidth_cm].every(v => typeof v === 'number' && v > 0)) {
+            throw new Error("Invalid input data");
+        }
+
+        // Área
         const area = length * width;
-        const areaWithWaste = area * (1 + (wasteMargin / 100));
+        const areaWithWaste = area * (1 + wasteMargin_pct / 100);
 
-        const tL_m = tileLength / 100;
-        const tW_m = tileWidth / 100;
-        const tileArea = tL_m * tW_m;
+        // Azulejo
+        const tileArea = (tileLength_cm / 100) * (tileWidth_cm / 100);
+        const tiles = Math.ceil(areaWithWaste / tileArea);
 
-        const tilesNeeded = Math.ceil(areaWithWaste / tileArea);
-        const mortarBags = Math.ceil((areaWithWaste * 5) / cementWeight); // Dynamic bag weight
+        // Argamassa
+        const mortarBags = Math.ceil(
+            (areaWithWaste * mortarConsumption_kg_m2) / mortarBagWeight_kg
+        );
 
-        // Grout Formula: ((L + W) * H * J * 1.58) / (L * W)
-        const tL_mm = tileLength * 10;
-        const tW_mm = tileWidth * 10;
-        const thickness = 8; // avg
-        const consumption = ((tL_mm + tW_mm) * thickness * groutJoint * 1.58) / (tL_mm * tW_mm);
-        const groutKg = (consumption * areaWithWaste).toFixed(2);
+        // Rejunte
+        const L = tileLength_cm * 10;
+        const W = tileWidth_cm * 10;
+        const H = 8; // mm
+        const J = groutJoint_mm;
+        const density = 1.58;
+
+        const groutConsumption = ((L + W) / (L * W)) * J * H * density;
+        const groutKg = groutConsumption * areaWithWaste;
 
         return {
-            area: parseFloat(area.toFixed(2)),
-            tiles: tilesNeeded,
-            mortar: mortarBags,
-            grout: parseFloat(groutKg)
+            area_m2: Number(area.toFixed(2)),
+            area_with_waste_m2: Number(areaWithWaste.toFixed(2)),
+            tiles_units: tiles,
+            mortar_bags: mortarBags,
+            grout_kg: Number(groutKg.toFixed(2))
         };
     };
 
@@ -121,10 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate Totals
         let totals = { area: 0, tiles: 0, mortar: 0, grout: 0 };
         project.rooms.forEach(room => {
-            totals.area += room.results.area;
-            totals.tiles += room.results.tiles;
-            totals.mortar += room.results.mortar;
-            totals.grout += room.results.grout;
+            totals.area += room.results.area_m2;
+            totals.tiles += room.results.tiles_units;
+            totals.mortar += room.results.mortar_bags;
+            totals.grout += room.results.grout_kg;
         });
 
         document.getElementById('total-area').innerHTML = `${totals.area.toFixed(2)} <small>m²</small>`;
@@ -143,24 +164,24 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="room-info">
                     <h4>${room.name}</h4>
-                    <p>${room.length}m x ${room.width}m | Piso ${room.tileLength}x${room.tileWidth}</p>
+                    <p>${room.length}m x ${room.width}m | Piso ${room.tileLength_cm}x${room.tileWidth_cm}</p>
                 </div>
                 <div class="room-results">
                     <div class="res-item">
                         <span class="l">Área</span>
-                        <span class="v">${room.results.area.toFixed(2)} m²</span>
+                        <span class="v">${room.results.area_m2.toFixed(2)} m²</span>
                     </div>
                     <div class="res-item">
                         <span class="l">Peças</span>
-                        <span class="v">${room.results.tiles}</span>
+                        <span class="v">${room.results.tiles_units}</span>
                     </div>
                     <div class="res-item">
                         <span class="l">Cimento</span>
-                        <span class="v">${room.results.mortar} sacos (${room.cementWeight}kg)</span>
+                        <span class="v">${room.results.mortar_bags} sacos (${room.mortarBagWeight_kg}kg)</span>
                     </div>
                     <div class="res-item">
                         <span class="l">Rejunte</span>
-                        <span class="v">${room.results.grout} kg</span>
+                        <span class="v">${room.results.grout_kg} kg</span>
                     </div>
                     <div class="room-actions">
                         <button class="trash-btn" data-room-id="${room.id}">${trashIconSvg}</button>
@@ -200,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         homeProjectsSection.style.display = 'block';
         state.projects.forEach(project => {
-            const totalArea = project.rooms.reduce((acc, room) => acc + (room.results?.area || 0), 0);
+            const totalArea = project.rooms.reduce((acc, room) => acc + (room.results?.area_m2 || 0), 0);
 
             const card = document.createElement('div');
             card.className = 'summary-card';
@@ -308,11 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('room-name-input').value = room.name;
             document.getElementById('room-length').value = room.length;
             document.getElementById('room-width').value = room.width;
-            document.getElementById('tile-length').value = room.tileLength;
-            document.getElementById('tile-width').value = room.tileWidth;
-            document.getElementById('grout-joint').value = room.groutJoint;
-            document.getElementById('waste-margin').value = room.wasteMargin;
-            document.getElementById('cement-weight').value = room.cementWeight || "20";
+            document.getElementById('tile-length').value = room.tileLength_cm;
+            document.getElementById('tile-width').value = room.tileWidth_cm;
+            document.getElementById('grout-joint').value = room.groutJoint_mm;
+            document.getElementById('waste-margin').value = room.wasteMargin_pct;
+            document.getElementById('cement-weight').value = room.mortarBagWeight_kg || "20";
             saveRoomBtn.textContent = 'Salvar Alterações';
         } else {
             editingRoomId = null;
@@ -353,7 +374,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const roomData = { length, width, tileLength: tileL, tileWidth: tileW, groutJoint: joint, wasteMargin: waste, cementWeight };
+        const roomData = {
+            length,
+            width,
+            tileLength_cm: tileL,
+            tileWidth_cm: tileW,
+            groutJoint_mm: joint,
+            wasteMargin_pct: waste,
+            mortarBagWeight_kg: cementWeight
+        };
         const results = calculateMaterials(roomData);
         const project = state.projects.find(p => p.id === state.currentProjectId);
 
